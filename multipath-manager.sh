@@ -22,7 +22,7 @@ SYSTOOL=$(type -P systool) || { echo "systool command is needed, please installl
 
 # disks management for multipath, based on wwn of the storage
 if [[ $# -ne 2 ]] ; then
-    echo -e "$0 syntax: action wwn|all\n  action: scan|show|disable|enable|delete\n  wwn format: 0x000000000000000)\n  note: to delete a disk this must be disabled in advance\n  all will perform the action on all the devices (currently available only for scan)"
+    echo -e "$0 syntax: action wwn|all\n  action: scan|show|disable|enable|delete\n  wwn format: 0x000000000000000 or 00:00:00:00:00:00:00:00)\n  note: to delete a disk this must be disabled in advance\n  all will perform the action on all the devices (currently available only for scan)"
     exit 1
 fi
 
