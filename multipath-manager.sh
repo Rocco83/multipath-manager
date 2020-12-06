@@ -30,7 +30,12 @@ ACTION=$1
 WWID=$2
 
 # wwid sanity check
-[[ "${WWID}" =~ ^0x[[:xdigit:]]{16}$ ]] || [[ "${WWID}" == "all" ]] || { echo "WWN format is not correct"; exit 1; }
+[[ "${WWID}" =~ ^0x[[:xdigit:]]{16}$ ]] || [[ "${WWID}" =~ ^[[:xdigit:]:]{23}$ ]] || [[ "${WWID}" == "all" ]] || { echo "WWN format is not correct"; exit 1; }
+
+# converting WWID to 0x format
+if [[ "${WWID}" =~ ^[[:xdigit:]:]{23}$ ]] ; then
+    WWID="0x$(echo $WWID | sed -s 's/://g')"
+fi
 
 # if "all" is defined, only scan action is available
 # other actions will not be defined in this section
@@ -42,9 +47,12 @@ if [[ "${WWID}" == "all" ]] ; then
             echo "rescanning SCSI HOST ${SCSI_HOST}"
             echo "- - -" > /sys/class/scsi_host/host${SCSI_HOST}/scan
         done
-        # don't proceed with other activities
+        # don't proceed with other actions
         exit 0
         ;;
+    *)
+        echo "Action '${ACTION}' not supported with WWID = ALL"
+        exit 1
     esac
 fi
 
@@ -59,7 +67,7 @@ if [[ "${LUN}" == "" ]] ; then
 fi
 
 # extract all the disks out from the multipath
-DISKS=$(lsscsi | grep -e "^\[${LUN}:[[:digit:]]\]" | sed -e "s,.*/dev/,,")
+DISKS=$(lsscsi | grep -E "^\[${LUN}:[[:digit:]]+\]" | sed -e "s,.*/dev/,,")
 
 # main switch-case
 case ${ACTION} in
@@ -81,10 +89,12 @@ case ${ACTION} in
 "delete")
     for disk in ${DISKS} ; do
         # If the disk is not failed in multipath, don't proceed (security failsafe)
-        multipath -ll | grep -q "${LUN}:.*${disk}.*failed" || { echo "The disk $disk has been not marked as failed"; continue; }
+        multipath -ll | grep -q "${LUN}:.*${disk} .*failed" || { echo "The disk $disk has been not marked as failed"; continue; }
         # the disk is maked as failed, deleting the disk
         echo -n "deleting disk ${disk}: "
         echo 1 > /sys/block/${disk}/device/delete
+        # waiting a little bit before doing the check
+        sleep 0.2
         if [[ -b /dev/${disk} ]] ; then
             echo "ko"
         else
